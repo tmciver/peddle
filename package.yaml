@@ -1,0 +1,14 @@
+name: SixFiveZeroTwo
+version: 0.0.1
+description: Emulator for the 6502 CPU.
+
+dependencies:
+- base >= 4.7 && < 5
+- listsafe
+
+library:
+  source-dirs: src
+  exposed-modules:
+  - CPU
+  - Instruction
+  - Computer
