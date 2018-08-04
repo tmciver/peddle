@@ -13,37 +13,54 @@ type RAM = [Word8]
 -- A Computer is simply a tuple of CPU and RAM.
 type Computer = (CPU, RAM)
 
-fetchData :: RAM -> Address -> Maybe Word8
-fetchData ram addr = let addrInt = toInteger addr
-                     in ram !! addrInt
+type Operation a = Computer -> (a, Computer) -- i.e., State
 
-fetchInstruction :: Computer -> Maybe Instruction
-fetchInstruction (cpu, ram) = let addr = cpuProgramCounter cpu
-                              in
-                               do
-                                 byte <- fetchData ram addr
-                                 ins <- decode byte
-                                 return ins
+--fetchData :: RAM -> Address -> Maybe Word8
+fetchData :: Address -> Operation (Maybe Word8)
+fetchData addr comp@(_, ram) = let addrInt = toInteger addr
+                                   dat = ram !! addrInt
+                               in (dat, comp)
+
+--fetchInstruction :: Computer -> Maybe Instruction
+fetchInstruction :: Operation (Maybe Instruction)
+fetchInstruction comp = let addr = cpuProgramCounter . fst $ comp
+                            (maybeByte, comp') = fetchData addr comp
+                            maybeIns = maybeByte >>= decode
+                        in
+                         (maybeIns, comp')
 
 -- Steps the Computer through one instruction.
-step :: Computer -> Maybe Computer
-step c = do
-  ins <- fetchInstruction c
-  step' c ins
-  where step' :: Computer -> Instruction -> Maybe Computer
+-- step :: Computer -> ((), Computer)
+step :: Operation ()
+step comp = let (maybeIns, comp') = fetchInstruction comp
+                maybeComp = do -- Maybe
+                  ins <- maybeIns
+                  step' comp' ins
+            in
+             case maybeComp of
+               Just comp'' -> ((), comp'')
+               Nothing -> ((), comp)
 
-        -- LDA
-        step' (cpu, ram) (LDA Immediate) = do
-          let addr = (cpuProgramCounter cpu) + 1
-          d <- fetchData ram addr
-          let cpu' = cpu { cpuRegA = d , cpuProgramCounter = addr + 1 }
-          return (cpu', ram)
+step' :: Computer -> Instruction -> Maybe Computer
 
-        -- Default
-        step' _ _ = Nothing
+-- LDA
+step' comp@(cpu, ram) (LDA Immediate) = do
+  let addr = (cpuProgramCounter cpu) + 1
+  d <- fst $ fetchData addr comp
+  let cpu' = cpu { cpuRegA = d , cpuProgramCounter = addr + 1 }
+  return (cpu', ram)
+
+-- Default
+step' _ _ = Nothing
 
 -- Given an initial Computer state, run the Computer
 run :: Computer -> [Computer]
 run = unfoldr step'
   where step' :: Computer -> Maybe (Computer, Computer)
-        step' c = fmap (\x -> (x, x)) (step c)
+        --step' c = fmap (\(_, x) -> (x, x)) (step c)
+        step' comp = let (_, comp') = step comp
+                     in
+                      if isDone comp' then Just (comp', comp')
+                      else Nothing
+        isDone :: Computer -> Bool
+        isDone _ = True

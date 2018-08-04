@@ -9,8 +9,9 @@ test = scope "Computer state transitions" $
          cpu = defaultCPU
          ram = [ 0xa9, 0x35 ]
          comp = (cpu, ram)
+         (_, comp') = step comp
          pc = cpuProgramCounter cpu
          expectedCPU = cpu { cpuRegA = 0x35 , cpuProgramCounter = pc + 2 }
          expectedComp = (expectedCPU, ram)
        in
-        expect $ step comp == Just expectedComp
+        expect $ comp' == expectedComp
