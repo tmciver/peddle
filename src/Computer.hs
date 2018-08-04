@@ -34,9 +34,9 @@ step c = do
 
         -- LDA
         step' (cpu, ram) (LDA Immediate) = do
-          let addr = cpuProgramCounter cpu
+          let addr = (cpuProgramCounter cpu) + 1
           d <- fetchData ram addr
-          let cpu' = cpu { cpuRegA = d }
+          let cpu' = cpu { cpuRegA = d , cpuProgramCounter = addr + 1 }
           return (cpu', ram)
 
         -- Default

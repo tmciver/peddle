@@ -12,3 +12,15 @@ library:
   - CPU
   - Instruction
   - Computer
+
+tests:
+  stack-test:
+    main: Test.hs
+    source-dirs: test/
+    dependencies:
+    - stm
+    - mtl
+    - containers
+    - random
+    - async
+    - SixFiveZeroTwo
