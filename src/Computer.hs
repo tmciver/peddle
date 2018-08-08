@@ -35,10 +35,16 @@ evalOperation op comp = fst $ runOperation op comp
 execOperation :: Operation a -> Computer -> Computer
 execOperation op comp = snd $ runOperation op comp
 
-getPCAddress :: Operation Address
-getPCAddress = do
+getProgramCounter :: Operation Address
+getProgramCounter = do
   (cpu, _) <- getComputer
   return $ cpuProgramCounter cpu
+
+incProgramCounter :: Operation ()
+incProgramCounter = do
+  pc <- getProgramCounter
+  cpu <- getCPU
+  putCPU cpu { cpuProgramCounter = pc + 1 }
 
 instance Functor Operation where
   fmap f op = Operation $ (\comp -> let (x, comp') = runOperation op comp
@@ -66,9 +72,8 @@ fetchData addr = Operation (\comp -> let addrInt = toInteger addr
 
 fetchInstruction :: Operation (Maybe Instruction)
 fetchInstruction = do
-  pc <- getPCAddress
-  cpu <- getCPU
-  putCPU cpu { cpuProgramCounter = pc + 1 }
+  pc <- getProgramCounter
+  incProgramCounter
   maybeIns <- fetchData pc
   return $ maybeIns >>= decode
 
@@ -85,7 +90,7 @@ step' :: Instruction -> Operation (Maybe ())
 
 -- LDA
 step' (LDA Immediate) = do
-  pc <- getPCAddress -- PC should be pointing at the byte after the LDA instruction.
+  pc <- getProgramCounter -- PC should be pointing at the byte after the LDA instruction.
   maybeByte <- fetchData pc
   cpu <- getCPU
   case maybeByte of
