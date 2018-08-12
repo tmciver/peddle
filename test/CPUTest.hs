@@ -11,7 +11,7 @@ test = scope "Computer state transitions" $
          ram = [ 0xa9, 0x35 ]
          comp = (cpu, ram)
          (OperationT s) = step
-         maybeComp = execStateT s comp
+         maybeComp = evalStateT s comp
          pc = cpuProgramCounter cpu
          expectedCPU = cpu { cpuRegA = 0x35 , cpuProgramCounter = pc + 2 }
          expectedComp = Just (expectedCPU, ram)

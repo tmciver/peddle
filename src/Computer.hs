@@ -11,6 +11,7 @@ import Data.List (unfoldr)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Catch
 import Control.Monad.Trans.Class
+import Control.Monad (join)
 
 type Address = Word16
 type RAM = [Word8]
@@ -71,9 +72,12 @@ fetchInstruction = do
     Just ins -> pure ins
     Nothing -> lift $ throwM (DecodingFailure byte)
 
+isDone :: Monad m => OperationT m Bool
+isDone = return False
+
 -- Steps the Computer through one instruction.
-step :: (MonadThrow m) => OperationT m ()
-step = fetchInstruction >>= step'
+step :: (MonadThrow m) => OperationT m Computer
+step = fetchInstruction >>= step' >> getComputer
 
 step' :: (MonadThrow m) => Instruction -> OperationT m ()
 
@@ -87,16 +91,21 @@ step' (LDA Immediate) = do
 -- Default
 step' _  = return ()
 
+-- Not sure why this doesn't work.
+-- run' :: Computer -> [Computer]
+-- run' comp = let (OperationT s) = untilM step isDone -- :: OperationT Maybe [Computer]
+--                 -- s :: StateT Computer Maybe [Computer] --> Computer -> Maybe ([Computer], Computer)
+--             in
+--              fromMaybe [] (evalStateT s comp)
+
 -- Given an initial Computer state, run the Computer
 run :: Computer -> [Computer]
 run = unfoldr step'
   where step' :: Computer -> Maybe (Computer, Computer)
-        step' comp = let (OperationT s) = (step :: OperationT Maybe ()) >> getComputer
-                         maybeComp = fmap fst (runStateT s comp)
+        step' comp = let (OperationT s) = do
+                           comp' <- step
+                           dun <- isDone
+                           return $ if dun then Nothing
+                                    else Just (comp', comp')
                      in
-                      do
-                        comp' <- maybeComp
-                        if isDone comp' then Nothing
-                          else Just (comp', comp')
-        isDone :: Computer -> Bool
-        isDone _ = False
+                      join $ evalStateT s comp
