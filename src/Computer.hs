@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Computer where
 
 import Prelude hiding ((!!))
@@ -6,6 +8,9 @@ import Instruction
 import Data.Word (Word8, Word16)
 import Data.List.Safe
 import Data.List (unfoldr)
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Catch
+import Control.Monad.Trans.Class
 
 type Address = Word16
 type RAM = [Word8]
@@ -13,100 +18,85 @@ type RAM = [Word8]
 -- A Computer is simply a tuple of CPU and RAM.
 type Computer = (CPU, RAM)
 
-newtype Operation a = Operation { runOperation :: Computer -> (a, Computer) } -- i.e., State
+newtype OperationT m a = OperationT (StateT Computer m a)
+                       deriving (Functor, Applicative, Monad, MonadTrans)
 
-getComputer :: Operation Computer
-getComputer = Operation (\comp -> (comp, comp))
+-- smart constructor
+operation :: (Monad m) => (Computer -> (a, Computer)) -> OperationT m a
+operation f = OperationT (state f)
 
-putComputer :: Computer -> Operation ()
-putComputer comp = Operation (\_ -> ((), comp))
+getComputer :: Monad m => OperationT m Computer
+getComputer = operation (\comp -> (comp, comp))
 
-getCPU :: Operation CPU
+putComputer :: Monad m => Computer -> OperationT m ()
+putComputer comp = operation (\_ -> ((), comp))
+
+getCPU :: MonadThrow m => OperationT m CPU
 getCPU = fmap fst getComputer
 
-putCPU :: CPU -> Operation ()
+putCPU :: MonadThrow m => CPU -> OperationT m ()
 putCPU cpu = do
   (_, ram) <- getComputer
-  Operation (\_ -> ((), (cpu, ram)))
+  operation (\_ -> ((), (cpu, ram)))
 
-evalOperation :: Operation a -> Computer -> a
-evalOperation op comp = fst $ runOperation op comp
-
-execOperation :: Operation a -> Computer -> Computer
-execOperation op comp = snd $ runOperation op comp
-
-getProgramCounter :: Operation Address
+getProgramCounter :: MonadThrow m => OperationT m Address
 getProgramCounter = do
   (cpu, _) <- getComputer
   return $ cpuProgramCounter cpu
 
-incProgramCounter :: Operation ()
+incProgramCounter :: MonadThrow m => OperationT m ()
 incProgramCounter = do
   pc <- getProgramCounter
   cpu <- getCPU
   putCPU cpu { cpuProgramCounter = pc + 1 }
 
-instance Functor Operation where
-  fmap f op = Operation $ (\comp -> let (x, comp') = runOperation op comp
-                                    in
-                                     (f x, comp'))
+data Error = DataNotFound Address
+           | DecodingFailure Word8
+           deriving (Show)
+instance Exception Error
 
-instance Applicative Operation where
-  pure x = Operation (\comp -> (x, comp))
-  opf <*> opx = Operation $ (\comp -> let (f, comp') = runOperation opf comp
-                                          (x, comp'') = runOperation opx comp'
-                                      in
-                                       (f x, comp''))
+fetchData :: (MonadThrow m) => Address -> OperationT m Word8
+fetchData addr = do
+  (_, ram) <- getComputer
+  case ram !! toInteger addr of
+    Just dat -> pure dat
+    Nothing -> lift $ throwM (DataNotFound addr)
 
-instance Monad Operation where
-  return x = Operation (\comp -> (x, comp))
-  op >>= f = Operation (\comp -> let (x, comp') = runOperation op comp
-                                 in
-                                  runOperation (f x) comp')
-
-fetchData :: Address -> Operation (Maybe Word8)
-fetchData addr = Operation (\comp -> let addrInt = toInteger addr
-                                         ram = snd comp
-                                         dat = ram !! addrInt
-                                     in (dat, comp))
-
-fetchInstruction :: Operation (Maybe Instruction)
+fetchInstruction :: (MonadThrow m) => OperationT m Instruction
 fetchInstruction = do
   pc <- getProgramCounter
   incProgramCounter
-  maybeIns <- fetchData pc
-  return $ maybeIns >>= decode
+  byte <- fetchData pc
+  case decode byte of
+    Just ins -> pure ins
+    Nothing -> lift $ throwM (DecodingFailure byte)
 
 -- Steps the Computer through one instruction.
-step :: Operation (Maybe ())
-step = do
-  maybeIns <- fetchInstruction
-  _ <- case maybeIns of
-        Just ins -> step' ins
-        Nothing -> return Nothing -- currently swallowing any error.
-  return . pure $ ()
+step :: (MonadThrow m) => OperationT m ()
+step = fetchInstruction >>= step'
 
-step' :: Instruction -> Operation (Maybe ())
+step' :: (MonadThrow m) => Instruction -> OperationT m ()
 
 -- LDA
 step' (LDA Immediate) = do
   pc <- getProgramCounter -- PC should be pointing at the byte after the LDA instruction.
-  maybeByte <- fetchData pc
+  byte <- fetchData pc
   cpu <- getCPU
-  case maybeByte of
-    Just byte -> Just <$> putCPU cpu { cpuRegA = byte , cpuProgramCounter = pc + 1 }
-    Nothing -> return . return $ ()
+  putCPU cpu { cpuRegA = byte , cpuProgramCounter = pc + 1 }
 
 -- Default
-step' _  = return . return $ ()
+step' _  = return ()
 
 -- Given an initial Computer state, run the Computer
 run :: Computer -> [Computer]
 run = unfoldr step'
   where step' :: Computer -> Maybe (Computer, Computer)
-        step' comp = let (_, comp') = runOperation step comp
+        step' comp = let (OperationT s) = (step :: OperationT Maybe ()) >> getComputer
+                         maybeComp = fmap fst (runStateT s comp)
                      in
-                      if isDone comp' then Just (comp', comp')
-                      else Nothing
+                      do
+                        comp' <- maybeComp
+                        if isDone comp' then Nothing
+                          else Just (comp', comp')
         isDone :: Computer -> Bool
         isDone _ = False
