@@ -53,6 +53,7 @@ incProgramCounter = do
 
 data Error = DataNotFound Address
            | DecodingFailure Word8
+           | UnsupportedAddressingMode String AddressingMode
            deriving (Show)
 instance Exception Error
 
@@ -87,6 +88,8 @@ step' (LDA Immediate) = do
   byte <- fetchData pc
   cpu <- getCPU
   putCPU cpu { cpuRegA = byte , cpuProgramCounter = pc + 1 }
+
+step' (LDA am) = lift $ throwM (UnsupportedAddressingMode "LDA" am)
 
 -- Default
 step' _  = return ()

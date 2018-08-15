@@ -13,6 +13,7 @@ data AddressingMode = Accumulator
                     | IndexedIndirect
                     | IndirectIndexed
                     | AbsoluteIndirect
+                    deriving (Show)
 
 data Instruction = LDA { addrMode :: AddressingMode
                        }
