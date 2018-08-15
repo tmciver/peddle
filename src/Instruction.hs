@@ -15,12 +15,16 @@ data AddressingMode = Accumulator
                     | AbsoluteIndirect
                     deriving (Show)
 
-data Instruction = LDA { addrMode :: AddressingMode
-                       }
-                 | AND
+data Mnemonic = LDA
+              | AND
+              deriving (Eq, Show)
+
+data Instruction = Instruction { mnemonic :: Mnemonic
+                               , addressingMode :: AddressingMode
+                               }
                  deriving (Show)
 
 -- Translation from an instruction byte (Word8) to an 'Instruction'.
 decode :: Word8 -> Maybe Instruction
-decode 0xa9 = Just (LDA Immediate)
+decode 0xa9 = Just (Instruction LDA Immediate)
 decode _ = Nothing

@@ -53,7 +53,7 @@ incProgramCounter = do
 
 data Error = DataNotFound Address
            | DecodingFailure Word8
-           | UnsupportedAddressingMode String AddressingMode
+           | UnsupportedAddressingMode Mnemonic AddressingMode
            | InstructionNotYetImplemented Instruction
            deriving (Show)
 instance Exception Error
@@ -84,13 +84,13 @@ step = fetchInstruction >>= step' >> getComputer
 step' :: (MonadThrow m) => Instruction -> OperationT m ()
 
 -- LDA
-step' (LDA Immediate) = do
+step' (Instruction LDA Immediate) = do
   pc <- getProgramCounter -- PC should be pointing at the byte after the LDA instruction.
   byte <- fetchData pc
   cpu <- getCPU
   putCPU cpu { cpuRegA = byte , cpuProgramCounter = pc + 1 }
 
-step' (LDA am) = lift $ throwM (UnsupportedAddressingMode "LDA" am)
+step' (Instruction LDA am) = lift $ throwM (UnsupportedAddressingMode LDA am)
 
 -- Default
 step' ins = lift $ throwM $ InstructionNotYetImplemented ins
