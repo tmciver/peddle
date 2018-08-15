@@ -54,6 +54,7 @@ incProgramCounter = do
 data Error = DataNotFound Address
            | DecodingFailure Word8
            | UnsupportedAddressingMode String AddressingMode
+           | InstructionNotYetImplemented Instruction
            deriving (Show)
 instance Exception Error
 
@@ -92,7 +93,7 @@ step' (LDA Immediate) = do
 step' (LDA am) = lift $ throwM (UnsupportedAddressingMode "LDA" am)
 
 -- Default
-step' _  = return ()
+step' ins = lift $ throwM $ InstructionNotYetImplemented ins
 
 -- Not sure why this doesn't work.
 -- run' :: Computer -> [Computer]

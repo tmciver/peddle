@@ -18,6 +18,7 @@ data AddressingMode = Accumulator
 data Instruction = LDA { addrMode :: AddressingMode
                        }
                  | AND
+                 deriving (Show)
 
 -- Translation from an instruction byte (Word8) to an 'Instruction'.
 decode :: Word8 -> Maybe Instruction
