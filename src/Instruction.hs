@@ -15,11 +15,11 @@ data AddressingMode = Accumulator
                     | AbsoluteIndirect
                     deriving (Show)
 
-data Mnemonic = LDA
-              | AND
-              deriving (Eq, Show)
+data Opcode = LDA
+            | AND
+            deriving (Eq, Show)
 
-data Instruction = Instruction { mnemonic :: Mnemonic
+data Instruction = Instruction { opcode :: Opcode
                                , addressingMode :: AddressingMode
                                }
                  deriving (Show)

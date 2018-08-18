@@ -53,7 +53,7 @@ incProgramCounter = do
 
 data Error = DataNotFound Address
            | DecodingFailure Word8
-           | UnsupportedAddressingMode Mnemonic AddressingMode
+           | UnsupportedAddressingMode Opcode AddressingMode
            | InstructionNotYetImplemented Instruction
            deriving (Show)
 instance Exception Error
