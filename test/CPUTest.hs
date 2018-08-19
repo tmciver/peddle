@@ -12,8 +12,7 @@ test = scope "Computer state transitions" $
              cpu = initializedCPU
              ram = [ 0xa9, 0x35 ]
              comp = (cpu, ram)
-             (OperationT s) = step
-             maybeComp = evalStateT s comp
+             maybeComp = evalStateT (runOperationT step) comp
              pc = cpuProgramCounter cpu
              expectedCPU = cpu { cpuRegA = 0x35 , cpuProgramCounter = pc + 2 }
              expectedComp = Just (expectedCPU, ram)
@@ -23,8 +22,7 @@ test = scope "Computer state transitions" $
              cpu = initializedCPU { cpuProgramCounter = 0x04 }
              ram = [0, 0, 0xaa, 0, 0xa5, 0x02]
              comp = (cpu, ram)
-             (OperationT s) = step
-             maybeComp = evalStateT s comp :: Maybe Computer
+             maybeComp = evalStateT (runOperationT step) comp
              pc = cpuProgramCounter cpu
              expectedCPU = cpu { cpuRegA = 0xaa , cpuProgramCounter = pc + 2 }
              expectedComp = Just (expectedCPU, ram)

@@ -19,7 +19,7 @@ type RAM = [Word8]
 -- A Computer is simply a tuple of CPU and RAM.
 type Computer = (CPU, RAM)
 
-newtype OperationT m a = OperationT (StateT Computer m a)
+newtype OperationT m a = OperationT { runOperationT :: (StateT Computer m a) }
                        deriving (Functor, Applicative, Monad, MonadTrans)
 
 -- smart constructor
@@ -119,10 +119,10 @@ step' ins = lift $ throwM $ InstructionNotYetImplemented ins
 run :: Computer -> [Computer]
 run = unfoldr step'
   where step' :: Computer -> Maybe (Computer, Computer)
-        step' comp = let (OperationT s) = do
+        step' comp = let opt = do
                            comp' <- step
                            dun <- isDone
                            return $ if dun then Nothing
                                     else Just (comp', comp')
                      in
-                      join $ evalStateT s comp
+                      join $ evalStateT (runOperationT opt) comp
