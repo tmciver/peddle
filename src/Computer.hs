@@ -81,14 +81,27 @@ isDone = return False
 step :: (MonadThrow m) => OperationT m Computer
 step = fetchInstruction >>= step' >> getComputer
 
+getZeroPageAddress :: MonadThrow m => OperationT m Address
+getZeroPageAddress = do
+  pc <- getProgramCounter
+  incProgramCounter
+  byte <- fetchData pc
+  return $ fromIntegral byte
+
 step' :: (MonadThrow m) => Instruction -> OperationT m ()
 
 -- LDA
 step' (Instruction LDA Immediate) = do
   pc <- getProgramCounter -- PC should be pointing at the byte after the LDA instruction.
+  incProgramCounter
   byte <- fetchData pc
   cpu <- getCPU
-  putCPU cpu { cpuRegA = byte , cpuProgramCounter = pc + 1 }
+  putCPU cpu { cpuRegA = byte }
+step' (Instruction LDA ZeroPage) = do
+  zpAddr <- getZeroPageAddress
+  byte <- fetchData zpAddr
+  cpu <- getCPU
+  putCPU cpu { cpuRegA = byte }
 
 step' (Instruction LDA am) = lift $ throwM (UnsupportedAddressingMode LDA am)
 

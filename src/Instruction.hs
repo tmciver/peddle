@@ -15,8 +15,8 @@ data AddressingMode = Accumulator
                     | AbsoluteIndirect
                     deriving (Show)
 
-data Opcode = LDA
-            | AND
+data Opcode = LDA -- load accumulator
+            | AND -- bitwise AND
             deriving (Eq, Show)
 
 data Instruction = Instruction { opcode :: Opcode
@@ -26,5 +26,9 @@ data Instruction = Instruction { opcode :: Opcode
 
 -- Translation from an instruction byte (Word8) to an 'Instruction'.
 decode :: Word8 -> Maybe Instruction
+
+-- LDA
 decode 0xa9 = Just (Instruction LDA Immediate)
+decode 0xa5 = Just (Instruction LDA ZeroPage)
+
 decode _ = Nothing
