@@ -9,7 +9,7 @@ test = scope "Computer state transitions" $
          scope "LDA tests" $ tests
          [
            let
-             cpu = defaultCPU
+             cpu = initializedCPU
              ram = [ 0xa9, 0x35 ]
              comp = (cpu, ram)
              (OperationT s) = step
@@ -20,7 +20,7 @@ test = scope "Computer state transitions" $
            in
             expect $ maybeComp == expectedComp
          , let
-             cpu = defaultCPU { cpuProgramCounter = 0x04 }
+             cpu = initializedCPU { cpuProgramCounter = 0x04 }
              ram = [0, 0, 0xaa, 0, 0xa5, 0x02]
              comp = (cpu, ram)
              (OperationT s) = step
