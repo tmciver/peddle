@@ -12,21 +12,28 @@ test = scope "Computer state transitions" $
              cpu = initializedCPU
              ram = [ 0xa9, 0x35 ]
              comp = (cpu, ram)
-             maybeComp = evalStateT (runOperationT step) comp
              pc = cpuProgramCounter cpu
              expectedCPU = cpu { cpuRegA = 0x35 , cpuProgramCounter = pc + 2 }
-             expectedComp = Just (expectedCPU, ram)
+             expectedComp = (expectedCPU, ram)
            in
-            expect $ maybeComp == expectedComp
+            test6502Program "LDA Immediate test" comp expectedComp
          , let
              cpu = initializedCPU { cpuProgramCounter = 0x04 }
              ram = [0, 0, 0xaa, 0, 0xa5, 0x02]
              comp = (cpu, ram)
-             maybeComp = evalStateT (runOperationT step) comp
              pc = cpuProgramCounter cpu
              expectedCPU = cpu { cpuRegA = 0xaa , cpuProgramCounter = pc + 2 }
-             expectedComp = Just (expectedCPU, ram)
+             expectedComp = (expectedCPU, ram)
            in
-            expect $ maybeComp == expectedComp
+            test6502Program "LDA ZeroPage test" comp expectedComp
          ]
-         
+
+test6502Program :: String    -- test message
+                -> Computer  -- Computer initial state
+                -> Computer  -- Expected Computer final state
+                -> Test ()
+test6502Program s compInit compExpected = scope s $
+  case evalStateT (runOperationT step) compInit of
+    Nothing -> crash "No final Computer state."
+    Just comp -> if comp == compExpected then ok
+                 else crash $ unlines ["", (show comp), "** did not equal **", (show compExpected)]
