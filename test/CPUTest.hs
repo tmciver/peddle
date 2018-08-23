@@ -11,19 +11,19 @@ test = scope "Computer state transitions" $
            let
              cpu = initializedCPU
              ram = [ 0xa9, 0x35 ]
-             comp = (cpu, ram)
+             comp = Computer cpu ram
              pc = cpuProgramCounter cpu
-             expectedCPU = cpu { cpuRegA = 0x35 , cpuProgramCounter = pc + 2 }
-             expectedComp = (expectedCPU, ram)
+             expectedCPU = cpu { cpuRegA = 0x35 , cpuProgramCounter = pc + 2, cpuTotalCycles = 2 }
+             expectedComp = Computer expectedCPU ram
            in
             test6502Program "LDA Immediate test" comp expectedComp
          , let
              cpu = initializedCPU { cpuProgramCounter = 0x04 }
              ram = [0, 0, 0xaa, 0, 0xa5, 0x02]
-             comp = (cpu, ram)
+             comp = Computer cpu ram
              pc = cpuProgramCounter cpu
-             expectedCPU = cpu { cpuRegA = 0xaa , cpuProgramCounter = pc + 2 }
-             expectedComp = (expectedCPU, ram)
+             expectedCPU = cpu { cpuRegA = 0xaa , cpuProgramCounter = pc + 2, cpuTotalCycles = 3 }
+             expectedComp = Computer expectedCPU ram
            in
             test6502Program "LDA ZeroPage test" comp expectedComp
          ]

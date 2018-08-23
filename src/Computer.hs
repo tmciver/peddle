@@ -17,7 +17,10 @@ type Address = Word16
 type RAM = [Word8]
 
 -- A Computer is simply a tuple of CPU and RAM.
-type Computer = (CPU, RAM)
+data Computer = Computer { computerCPU :: CPU
+                         , computerRAM :: RAM
+                         }
+              deriving (Eq, Show)
 
 newtype OperationT m a = OperationT { runOperationT :: (StateT Computer m a) }
                        deriving (Functor, Applicative, Monad, MonadTrans)
@@ -33,23 +36,30 @@ putComputer :: Monad m => Computer -> OperationT m ()
 putComputer comp = operation (\_ -> ((), comp))
 
 getCPU :: MonadThrow m => OperationT m CPU
-getCPU = fmap fst getComputer
+getCPU = fmap computerCPU getComputer
 
 putCPU :: MonadThrow m => CPU -> OperationT m ()
 putCPU cpu = do
-  (_, ram) <- getComputer
-  operation (\_ -> ((), (cpu, ram)))
+  Computer _ ram <- getComputer
+  let comp = Computer cpu ram
+  putComputer comp
 
 getProgramCounter :: MonadThrow m => OperationT m Address
-getProgramCounter = do
-  (cpu, _) <- getComputer
-  return $ cpuProgramCounter cpu
+getProgramCounter = cpuProgramCounter . computerCPU <$> getComputer
 
 incProgramCounter :: MonadThrow m => OperationT m ()
 incProgramCounter = do
   pc <- getProgramCounter
   cpu <- getCPU
   putCPU cpu { cpuProgramCounter = pc + 1 }
+
+incCycles :: Monad m => Int -> OperationT m ()
+incCycles n = incCycles' <$> getComputer >>= putComputer
+  where incCycles' :: Computer -> Computer
+        incCycles' (Computer cpu ram) = let currentCycles = cpuTotalCycles cpu
+                                            newCpu = cpu { cpuTotalCycles = currentCycles + n }
+                                        in
+                                         Computer newCpu ram
 
 data Error = DataNotFound Address
            | DecodingFailure Word8
@@ -60,7 +70,7 @@ instance Exception Error
 
 fetchData :: (MonadThrow m) => Address -> OperationT m Word8
 fetchData addr = do
-  (_, ram) <- getComputer
+  ram <- computerRAM <$> getComputer
   case ram !! toInteger addr of
     Just dat -> pure dat
     Nothing -> lift $ throwM (DataNotFound addr)
@@ -91,19 +101,21 @@ getZeroPageAddress = do
 step' :: (MonadThrow m) => Instruction -> OperationT m ()
 
 -- LDA
-step' (Instruction LDA Immediate) = do
+step' (Instruction LDA Immediate cycles) = do
   pc <- getProgramCounter -- PC should be pointing at the byte after the LDA instruction.
   incProgramCounter
   byte <- fetchData pc
   cpu <- getCPU
   putCPU cpu { cpuRegA = byte }
-step' (Instruction LDA ZeroPage) = do
+  incCycles cycles
+step' (Instruction LDA ZeroPage cycles) = do
   zpAddr <- getZeroPageAddress
   byte <- fetchData zpAddr
   cpu <- getCPU
   putCPU cpu { cpuRegA = byte }
+  incCycles cycles
 
-step' (Instruction LDA am) = lift $ throwM (UnsupportedAddressingMode LDA am)
+step' (Instruction LDA am _) = lift $ throwM (UnsupportedAddressingMode LDA am)
 
 -- Default
 step' ins = lift $ throwM $ InstructionNotYetImplemented ins

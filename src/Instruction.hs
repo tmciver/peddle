@@ -21,6 +21,7 @@ data Opcode = LDA -- load accumulator
 
 data Instruction = Instruction { opcode :: Opcode
                                , addressingMode :: AddressingMode
+                               , baseCycles :: Int
                                }
                  deriving (Show)
 
@@ -28,7 +29,7 @@ data Instruction = Instruction { opcode :: Opcode
 decode :: Word8 -> Maybe Instruction
 
 -- LDA
-decode 0xa9 = Just (Instruction LDA Immediate)
-decode 0xa5 = Just (Instruction LDA ZeroPage)
+decode 0xa9 = Just (Instruction LDA Immediate 2)
+decode 0xa5 = Just (Instruction LDA ZeroPage 3)
 
 decode _ = Nothing
