@@ -2,8 +2,8 @@
 
 module Computer where
 
-import Prelude hiding ((!!))
 import CPU
+import Bus
 import Instruction
 import Data.Word (Word8, Word16)
 import Data.List.Safe
@@ -13,12 +13,9 @@ import Control.Monad.Catch
 import Control.Monad.Trans.Class
 import Control.Monad (join)
 
-type Address = Word16
-type RAM = [Word8]
-
 -- A Computer is simply a tuple of CPU and RAM.
 data Computer = Computer { computerCPU :: CPU
-                         , computerRAM :: RAM
+                         , computerBus :: Bus
                          }
               deriving (Eq, Show)
 
@@ -40,8 +37,8 @@ getCPU = fmap computerCPU getComputer
 
 putCPU :: MonadThrow m => CPU -> OperationT m ()
 putCPU cpu = do
-  Computer _ ram <- getComputer
-  let comp = Computer cpu ram
+  Computer _ bus <- getComputer
+  let comp = Computer cpu bus
   putComputer comp
 
 getProgramCounter :: MonadThrow m => OperationT m Address
@@ -56,10 +53,10 @@ incProgramCounter = do
 incCycles :: Monad m => Int -> OperationT m ()
 incCycles n = incCycles' <$> getComputer >>= putComputer
   where incCycles' :: Computer -> Computer
-        incCycles' (Computer cpu ram) = let currentCycles = cpuTotalCycles cpu
+        incCycles' (Computer cpu bus) = let currentCycles = cpuTotalCycles cpu
                                             newCpu = cpu { cpuTotalCycles = currentCycles + n }
                                         in
-                                         Computer newCpu ram
+                                         Computer newCpu bus
 
 data Error = DataNotFound Address
            | DecodingFailure Word8
@@ -70,8 +67,8 @@ instance Exception Error
 
 fetchData :: (MonadThrow m) => Address -> OperationT m Word8
 fetchData addr = do
-  ram <- computerRAM <$> getComputer
-  case ram !! toInteger addr of
+  bus <- computerBus <$> getComputer
+  case readBus bus addr of
     Just dat -> pure dat
     Nothing -> lift $ throwM (DataNotFound addr)
 
