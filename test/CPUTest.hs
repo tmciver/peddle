@@ -38,5 +38,4 @@ test6502Program :: String    -- test message
 test6502Program s compInit compExpected = scope s $
   case evalStateT (runOperationT step) compInit of
     Nothing -> crash "No final Computer state."
-    Just comp -> if comp == compExpected then ok
-                 else crash $ unlines ["", (show comp), "** did not equal **", (show compExpected)]
+    Just comp -> expectEqual compExpected comp
