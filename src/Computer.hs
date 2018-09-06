@@ -62,8 +62,30 @@ data Error = DataNotFound Address
            | DecodingFailure Word8
            | UnsupportedAddressingMode Opcode AddressingMode
            | InstructionNotYetImplemented Instruction
+           | NoDataForAddressingMode AddressingMode
            deriving (Show)
 instance Exception Error
+
+getAddressForAddressingMode :: (MonadThrow m) => AddressingMode -> OperationT m (Maybe Address)
+getAddressForAddressingMode Immediate = do
+  pc <- getProgramCounter
+  incProgramCounter
+  return $ Just pc
+
+getAddressForAddressingMode ZeroPage = do
+  pc <- getProgramCounter
+  incProgramCounter
+  byte <- fetchData pc
+  return $ Just $ fromIntegral byte
+
+getAddressForAddressingMode _ = return Nothing
+
+fetchDataForAddressingMode :: (MonadThrow m) => AddressingMode -> OperationT m (Maybe Word8)
+fetchDataForAddressingMode am = do
+  maybeAddr <- getAddressForAddressingMode am
+  case maybeAddr of
+    Just addr -> Just <$> fetchData addr
+    Nothing -> return Nothing
 
 fetchData :: (MonadThrow m) => Address -> OperationT m Word8
 fetchData addr = do
@@ -88,31 +110,23 @@ isDone = return False
 step :: (MonadThrow m) => OperationT m Computer
 step = fetchInstruction >>= step' >> getComputer
 
-getZeroPageAddress :: MonadThrow m => OperationT m Address
-getZeroPageAddress = do
-  pc <- getProgramCounter
-  incProgramCounter
-  byte <- fetchData pc
-  return $ fromIntegral byte
+-- |Execute a step of the computer using the given function to operate on data.
+executeWithData :: MonadThrow m => AddressingMode -> (Word8 -> OperationT m ()) -> OperationT m ()
+executeWithData am f = do
+  maybeByte <- fetchDataForAddressingMode am
+  case maybeByte of
+    Just byte -> f byte
+    Nothing -> lift $ throwM (NoDataForAddressingMode am)
 
 step' :: (MonadThrow m) => Instruction -> OperationT m ()
 
 -- LDA
-step' (Instruction LDA Immediate cycles) = do
-  pc <- getProgramCounter -- PC should be pointing at the byte after the LDA instruction.
-  incProgramCounter
-  byte <- fetchData pc
-  cpu <- getCPU
-  putCPU cpu { cpuRegA = byte }
-  incCycles cycles
-step' (Instruction LDA ZeroPage cycles) = do
-  zpAddr <- getZeroPageAddress
-  byte <- fetchData zpAddr
-  cpu <- getCPU
-  putCPU cpu { cpuRegA = byte }
-  incCycles cycles
-
-step' (Instruction LDA am _) = lift $ throwM (UnsupportedAddressingMode LDA am)
+step' (Instruction LDA am cycles) = executeWithData am setAccumulator
+  where setAccumulator :: MonadThrow m => Word8 -> OperationT m ()
+        setAccumulator byte = do
+          cpu <- getCPU
+          putCPU cpu { cpuRegA = byte }
+          incCycles cycles
 
 -- Default
 step' ins = lift $ throwM $ InstructionNotYetImplemented ins
