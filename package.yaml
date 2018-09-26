@@ -1,4 +1,4 @@
-name: SixFiveZeroTwo
+name: peddle
 version: 0.0.1
 description: Emulator for the 6502 CPU.
 
@@ -27,4 +27,4 @@ tests:
     - containers
     - random
     - async
-    - SixFiveZeroTwo
+    - peddle
