@@ -1,18 +1,23 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Bus ( Address
            , AddressRange(..)
            , Bus
+           , BusError(..)
            , Hardware(..)
            , empty
            , add
            , remove
            , readBus
-           , writeBus
+           , writeByte
+           , writeBytes
            ) where
 
 import Prelude hiding ((!!), head, read)
 import qualified Data.Map as Map
 import Data.Word (Word8, Word16)
 import Data.List.Safe
+import qualified Data.List
 
 type Address = Word16
 data AddressRange = AddressRange Address Address
@@ -21,6 +26,8 @@ newtype Bus = Bus (Map.Map AddressRange [Word8])
             deriving (Eq, Show)
 data Hardware = HW AddressRange [Word8]
 data BusError = OverlappingHardware
+              | UndefinedAddress Address
+              | WriteError Address
 
 -- |Create an empty Bus
 empty :: Bus
@@ -52,7 +59,30 @@ readBus (Bus m) addr = do
   let idx = addr - low -- Calculate the index into the list.
   l !! idx
 
--- |Write some data to address.
--- TODO implement!
-writeBus :: Bus -> Address -> Word8 -> Maybe ()
-writeBus = undefined
+addressRangeForAddress :: Bus -> Address -> Maybe AddressRange
+addressRangeForAddress (Bus m) addr = Data.List.find (inRange addr) (Map.keys m)
+
+-- |Modify the element of a list at the given index using the given function.
+modifyNth :: forall a. Int -> (a -> a) -> [a] -> [a]
+modifyNth n f l = Data.List.zipWith f' l [0..]
+  where f' :: a -> Int -> a
+        f' x n' = if n' == n then f x else x
+
+-- |Write a byte of data to address.
+writeByte :: Bus -> Address -> Word8 -> Either BusError Bus
+writeByte bus@(Bus m) addr dat = case addressRangeForAddress bus addr of
+  Nothing -> Left $ WriteError addr
+  Just ar@(AddressRange low _) -> Right $ Bus $ Map.adjust updateList ar m
+    where nth :: Int
+          nth = fromIntegral $ addr - low
+          updateList :: [Word8] -> [Word8]
+          updateList l = modifyNth nth (const dat) l
+
+writeBytes :: Bus -> Address -> [Word8] -> Either BusError Bus
+writeBytes bus addr dat = undefined
+
+createFromList :: [Word8] -> Address -> Bus
+createFromList l offset = Bus memMap
+  where endOffset = fromIntegral (length l)
+        range = AddressRange offset endOffset
+        memMap = Map.insert range l Map.empty
