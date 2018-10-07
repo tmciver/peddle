@@ -8,8 +8,8 @@ module Bus ( Address
            , empty
            , add
            , remove
-           , readBus
-           , writeByte
+           , read
+           , write
            , writeBytes
            ) where
 
@@ -51,8 +51,8 @@ remove :: Hardware -> Bus -> Bus
 remove (HW ar _) (Bus m) = Bus $ (Map.delete ar m)
 
 -- |Try to read data from address.
-readBus :: Bus -> Address -> Maybe Word8
-readBus (Bus m) addr = do
+read :: Bus -> Address -> Maybe Word8
+read (Bus m) addr = do
   let ks = Map.keys m :: [AddressRange]
   ar@(AddressRange low _) <- head $ filter (inRange addr) ks -- Get the AddressRange that addr falls within.
   l <- Map.lookup ar m -- Get the list associated with ar
@@ -69,8 +69,8 @@ modifyNth n f l = Data.List.zipWith f' l [0..]
         f' x n' = if n' == n then f x else x
 
 -- |Write a byte of data to address.
-writeByte :: Bus -> Address -> Word8 -> Either BusError Bus
-writeByte bus@(Bus m) addr dat = case addressRangeForAddress bus addr of
+write :: Bus -> Address -> Word8 -> Either BusError Bus
+write bus@(Bus m) addr dat = case addressRangeForAddress bus addr of
   Nothing -> Left $ WriteError addr
   Just ar@(AddressRange low _) -> Right $ Bus $ Map.adjust updateList ar m
     where nth :: Int

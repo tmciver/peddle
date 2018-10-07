@@ -90,7 +90,7 @@ fetchDataForAddressingMode am = do
 fetchData :: (MonadThrow m) => Address -> OperationT m Word8
 fetchData addr = do
   bus <- computerBus <$> getComputer
-  case readBus bus addr of
+  case Bus.read bus addr of
     Just dat -> pure dat
     Nothing -> lift $ throwM (DataNotFound addr)
 

@@ -24,14 +24,14 @@ readTest bus addr expectedByte =
   if actualByte == expectedByte
   then ok
   else crash $ "readTest: byte " ++ (show actualByte) ++ " is not equal to " ++ (show expectedByte)
-  where actualByte = fromJust $ readBus bus addr
+  where actualByte = fromJust $ Bus.read bus addr
 
 writeTest :: Bus     -- Bus to read/write to
           -> Address -- Address to write to
           -> Word8   -- The byte to write
           -> Test ()
-writeTest bus addr dat = let newBus = fromRight (error "Couldn't write data to bus.") (writeByte bus addr dat)
-                             writtenData = fromJust $ readBus newBus addr
+writeTest bus addr dat = let newBus = fromRight (error "Couldn't write data to bus.") (write bus addr dat)
+                             writtenData = fromJust $ Bus.read newBus addr
                          in
                            if writtenData == dat
                            then ok
