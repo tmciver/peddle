@@ -9,6 +9,8 @@ module Bus ( Address
            , add
            , remove
            , read
+           , readBytes
+           , readRange
            , write
            , writeBytes
            ) where
@@ -18,6 +20,7 @@ import qualified Data.Map as Map
 import Data.Word (Word8, Word16)
 import Data.List.Safe
 import qualified Data.List
+import Control.Monad (forM, foldM)
 
 type Address = Word16
 data AddressRange = AddressRange Address Address
@@ -59,6 +62,19 @@ read (Bus m) addr = do
   let idx = addr - low -- Calculate the index into the list.
   l !! idx
 
+-- |Reads a number of bytes of data starting at the given 'Address'.
+readBytes :: Bus     -- ^The 'Bus' to read from.
+          -> Address -- ^The starting 'Address'.
+          -> Int     -- ^The number of consecutive bytes to read.
+          -> Maybe [Word8]
+readBytes bus addr numBytes = forM addrs (read bus)
+  where addrs = take numBytes [addr..]
+
+-- |Reads data from the given 'AddressRange'
+-- TODO implement!
+readRange :: Bus -> AddressRange -> Maybe [Word8]
+readRange = undefined
+
 addressRangeForAddress :: Bus -> Address -> Maybe AddressRange
 addressRangeForAddress (Bus m) addr = Data.List.find (inRange addr) (Map.keys m)
 
@@ -79,7 +95,13 @@ write bus@(Bus m) addr dat = case addressRangeForAddress bus addr of
           updateList l = modifyNth nth (const dat) l
 
 writeBytes :: Bus -> Address -> [Word8] -> Either BusError Bus
-writeBytes bus addr dat = undefined
+writeBytes bus addr dat = foldM write' bus addrAndData
+  where addrAndData :: [(Address, Word8)]
+        addrAndData = zip addrs dat
+        addrs :: [Address]
+        addrs = take (length dat) [addr..]
+        write' :: Bus -> (Address, Word8) -> Either BusError Bus
+        write' bus (addr, dat) = write bus addr dat
 
 createFromList :: [Word8] -> Address -> Bus
 createFromList l offset = Bus memMap
