@@ -78,6 +78,15 @@ getAddressForAddressingMode ZeroPage = do
   byte <- fetchData pc
   return $ Just $ fromIntegral byte
 
+getAddressForAddressingMode ZeroPageX = do
+  pc <- getProgramCounter
+  incProgramCounter
+  cpu <- getCPU
+  byte <- fetchData pc
+  let regX = cpuRegX cpu
+      addr = byte + regX
+  return $ Just $ fromIntegral addr
+
 getAddressForAddressingMode _ = return Nothing
 
 fetchDataForAddressingMode :: (MonadThrow m) => AddressingMode -> OperationT m (Maybe Word8)

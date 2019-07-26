@@ -6,7 +6,7 @@ data AddressingMode = Accumulator
                     | Immediate
                     | Absolute
                     | ZeroPage
-                    | IndexedZeroPage
+                    | ZeroPageX
                     | IndexedAbsolute
                     | Implied          -- This may not be needed but is here for completeness.
                     | Relative
@@ -31,5 +31,6 @@ decode :: Word8 -> Maybe Instruction
 -- LDA
 decode 0xa9 = Just (Instruction LDA Immediate 2)
 decode 0xa5 = Just (Instruction LDA ZeroPage 3)
+decode 0xb5 = Just (Instruction LDA ZeroPageX 4)
 
 decode _ = Nothing

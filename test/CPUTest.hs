@@ -26,6 +26,16 @@ test = scope "Computer state transitions" $
              expectedComp = Computer expectedCPU bus
            in
             test6502Program "LDA ZeroPage test" comp expectedComp
+         , let
+             dat = [0, 0, 0, 0xaa, 0xb5, 0x01]
+             comp'@(Computer cpu' bus) = load dat 4
+             cpu = cpu' { cpuRegX = 2 }
+             comp = Computer cpu bus
+             pc = cpuProgramCounter cpu
+             expectedCPU = cpu { cpuRegA = 0xaa , cpuProgramCounter = pc + 2, cpuTotalCycles = 4 }
+             expectedComp = Computer expectedCPU bus
+           in
+            test6502Program "LDA ZeroPageX test" comp expectedComp
          ]
 
 load :: [Word8] -> Word16 -> Computer
