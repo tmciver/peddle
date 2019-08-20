@@ -13,6 +13,11 @@ test = scope "Bus tests" $ tests
                writtenByte = 16 :: Word8
            in
              scope "Test read/write single byte" $ (readTest bus addr readByte) >> (writeTest bus addr writtenByte)
+         , let
+             addr = 100
+             readByte = 10
+           in
+             scope "Test read single byte from singleton Bus" $ (readTest singletonBus addr readByte)
          , let addr = 104 :: Address
                bytes = [10, 9, 8, 7, 6] :: [Word8]
            in
@@ -22,6 +27,10 @@ test = scope "Bus tests" $ tests
 bus :: Bus
 bus = fromRight (error "Couldn't add hardware to empty bus.") (Bus.add hw empty)
   where hw = HW (AddressRange 100 109) [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+
+singletonBus :: Bus -- a Bus with a single data value
+singletonBus = fromRight (error "Couldn't add hardware to empty bus.") (Bus.add hw empty)
+  where hw = HW (AddressRange 100 100) [10]
 
 readTest :: Bus     -- Bus to read from
          -> Address -- Address to read from

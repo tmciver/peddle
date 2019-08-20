@@ -43,7 +43,7 @@ overlap _ _ = False
 
 -- |Returns True if the 'Address' falls within the 'AddressRange'.
 inRange :: Address -> AddressRange -> Bool
-inRange addr (AddressRange lo hi) = addr >= lo && addr < hi
+inRange addr (AddressRange lo hi) = addr >= lo && addr <= hi
 
 -- |Adds a piece of hardware to the Bus.
 add :: Hardware -> Bus -> Either BusError Bus
