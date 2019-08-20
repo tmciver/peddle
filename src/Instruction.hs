@@ -32,5 +32,6 @@ decode :: Word8 -> Maybe Instruction
 decode 0xa9 = Just (Instruction LDA Immediate 2)
 decode 0xa5 = Just (Instruction LDA ZeroPage 3)
 decode 0xb5 = Just (Instruction LDA ZeroPageX 4)
+decode 0xad = Just (Instruction LDA Absolute 4)
 
 decode _ = Nothing

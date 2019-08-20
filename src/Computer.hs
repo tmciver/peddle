@@ -5,6 +5,7 @@ module Computer where
 import CPU
 import Bus
 import Instruction
+import Peddle.Data.Word (bytesToWord16)
 import Data.Word (Word8, Word16)
 import Data.List.Safe
 import Data.List (unfoldr)
@@ -86,6 +87,16 @@ getAddressForAddressingMode ZeroPageX = do
   let regX = cpuRegX cpu
       addr = byte + regX
   return $ Just $ fromIntegral addr
+
+getAddressForAddressingMode Absolute = do
+  pc <- getProgramCounter
+  incProgramCounter
+  low <- fetchData pc
+  pc' <- getProgramCounter
+  incProgramCounter
+  high <- fetchData pc'
+  let addr = bytesToWord16 low high
+  return $ Just addr
 
 getAddressForAddressingMode _ = return Nothing
 

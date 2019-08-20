@@ -36,6 +36,15 @@ test = scope "Computer state transitions" $
              expectedComp = Computer expectedCPU bus
            in
             test6502Program "LDA ZeroPageX test" comp expectedComp
+         , let
+             Right bus = Bus.add (HW (AddressRange 54897 54897) [0xca]) Bus.empty >>= Bus.add (HW (AddressRange 5 7) [0xad, 0x71, 0xd6])
+             cpu = initializedCPU { cpuProgramCounter = 5 }
+             comp = Computer cpu bus
+             pc = cpuProgramCounter cpu
+             expectedCPU = cpu { cpuRegA = 0xca , cpuProgramCounter = pc + 3, cpuTotalCycles = 4 }
+             expectedComp = Computer expectedCPU bus
+           in
+             test6502Program "LDA Absolute test" comp expectedComp
          ]
 
 load :: [Word8] -> Word16 -> Computer
