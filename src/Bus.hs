@@ -31,15 +31,19 @@ data Hardware = HW AddressRange [Word8]
 data BusError = OverlappingHardware
               | UndefinedAddress Address
               | WriteError Address
+              deriving (Eq, Show)
 
 -- |Create an empty Bus
 empty :: Bus
 empty = Bus Map.empty
 
 -- | Returns True if the 'AddressRange's overlap.
--- TODO implement!
-overlap :: AddressRange -> AddressRange -> Bool
-overlap _ _ = False
+overlaps :: AddressRange -> AddressRange -> Bool
+overlaps (AddressRange low1 hi1) (AddressRange low2 hi2) = not (low2 > hi1 || hi2 < low1)
+
+-- | Returns True if the gven 'Hardware' overlaps of any of the 'Hardware' in the given Bus; False otherwise.
+overlapsAny :: Bus -> Hardware -> Bool
+overlapsAny (Bus m) (HW ar _) = any (overlaps ar) (Map.keys m)
 
 -- |Returns True if the 'Address' falls within the 'AddressRange'.
 inRange :: Address -> AddressRange -> Bool
@@ -47,7 +51,9 @@ inRange addr (AddressRange lo hi) = addr >= lo && addr <= hi
 
 -- |Adds a piece of hardware to the Bus.
 add :: Hardware -> Bus -> Either BusError Bus
-add (HW ar l) (Bus m) = Right $ Bus (Map.insert ar l m) -- TODO check that the added HW does not have an AddressRange that ovelaps with any other.
+add hw@(HW ar l) bus@(Bus m) = if overlapsAny bus hw
+  then Left OverlappingHardware
+  else Right $ Bus (Map.insert ar l m) -- TODO check that the added HW does not have an AddressRange that ovelaps with any other.
 
 -- |Removes a piece of hardware from the bus.
 remove :: Hardware -> Bus -> Bus

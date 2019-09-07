@@ -22,6 +22,7 @@ test = scope "Bus tests" $ tests
                bytes = [10, 9, 8, 7, 6] :: [Word8]
            in
              scope "Test read/write range of bytes" $ writeRangeTest bus addr bytes
+         , hwOverlapTest
          ]
 
 bus :: Bus
@@ -63,3 +64,29 @@ writeRangeTest bus addr dat = let newBus = fromRight (error "Couldn't write data
                                 if writtenData == dat
                                 then ok
                                 else crash $ "writeTest: byte " ++ (show dat) ++ " is not equal to " ++ (show writtenData)
+
+hwOverlapTest = hwOverlapTestSuccess >> hwOverlapTestFailure
+
+hwOverlapTestSuccess :: Test ()
+hwOverlapTestSuccess = scope "Non-overlapping hardware should not cause error" $ case eitherBus of
+  Left e -> crash (show e)
+  Right _ -> ok
+  where eitherBus = do
+          bus1 <- Bus.add hw1 Bus.empty
+          Bus.add hw2 bus1
+        hw1 :: Hardware
+        hw1 = HW (AddressRange 0 9) []
+        hw2 :: Hardware
+        hw2 = HW (AddressRange 10 19) []
+
+hwOverlapTestFailure :: Test ()
+hwOverlapTestFailure = scope "Overlapping hardware should cause error" $ case eitherBus of
+  Left _ -> ok
+  Right _ -> crash "Bus overlap test should have failed but didn't."
+  where eitherBus = do
+          bus1 <- Bus.add hw1 Bus.empty
+          Bus.add hw2 bus1
+        hw1 :: Hardware
+        hw1 = HW (AddressRange 0 9) []
+        hw2 :: Hardware
+        hw2 = HW (AddressRange 9 19) []
